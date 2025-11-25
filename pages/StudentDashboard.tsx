@@ -13,23 +13,24 @@ import {
   ChevronRight,
   Trophy,
   Target,
-  LogOut
+  Home,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { VideoLesson, UserStats, Achievement } from '../types';
 
-// Mock Data para Conquistas (Caso o banco esteja vazio)
+// Mock Data para Conquistas
 const MOCK_ACHIEVEMENTS: (Achievement & { unlocked: boolean, progress: number, target: number })[] = [
-  { id: '1', name: 'Primeiros Passos', description: 'Complete seu primeiro treino', icon: 'flag', points: 10, active: true, unlocked: true, progress: 1, target: 1 },
-  { id: '2', name: 'Consistência', description: 'Treine 3 dias seguidos', icon: 'flame', points: 30, active: true, unlocked: true, progress: 3, target: 3 },
-  { id: '3', name: 'Maratonista', description: 'Assista 10 videoaulas', icon: 'video', points: 50, active: true, unlocked: false, progress: 4, target: 10 },
-  { id: '4', name: 'Lenda da Academia', description: 'Alcance o nível 10', icon: 'crown', points: 100, active: true, unlocked: false, progress: 1, target: 10 },
-  { id: '5', name: 'Focado', description: 'Complete 50 treinos', icon: 'target', points: 100, active: true, unlocked: false, progress: 12, target: 50 },
+  { id: '1', title: 'Primeiros Passos', description: 'Complete seu primeiro treino', icon: 'flag', points: 10, active: true, unlocked: true, progress: 1, target: 1, color: 'yellow', criteria_type: 'workouts', criteria_value: 1 },
+  { id: '2', title: 'Consistência', description: 'Treine 3 dias seguidos', icon: 'flame', points: 30, active: true, unlocked: true, progress: 3, target: 3, color: 'orange', criteria_type: 'streak', criteria_value: 3 },
+  { id: '3', title: 'Maratonista', description: 'Assista 10 videoaulas', icon: 'video', points: 50, active: true, unlocked: false, progress: 4, target: 10, color: 'blue', criteria_type: 'video', criteria_value: 10 },
+  { id: '4', title: 'Lenda da Academia', description: 'Alcance o nível 10', icon: 'crown', points: 100, active: true, unlocked: false, progress: 1, target: 10, color: 'purple', criteria_type: 'points', criteria_value: 10 },
+  { id: '5', title: 'Focado', description: 'Complete 50 treinos', icon: 'target', points: 100, active: true, unlocked: false, progress: 12, target: 50, color: 'red', criteria_type: 'workouts', criteria_value: 50 },
 ];
 
 const StudentDashboard = () => {
-  const { profile, signOut } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'videos' | 'personal' | 'achievements'>('overview');
   
@@ -104,8 +105,7 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleBackToHome = () => {
     navigate('/');
   };
 
@@ -137,8 +137,8 @@ const StudentDashboard = () => {
                 Onzy<span className="text-brand">Academy</span>
             </span>
         </div>
-        <button onClick={handleSignOut} className="text-gray-400 hover:text-white">
-            <LogOut size={20} />
+        <button onClick={handleBackToHome} className="text-gray-400 hover:text-white" title="Voltar ao Site">
+            <Home size={20} />
         </button>
       </div>
 
@@ -161,24 +161,35 @@ const StudentDashboard = () => {
             {renderSidebarItem('videos', <Play size={20} />, 'Sala de Treino')}
             {renderSidebarItem('achievements', <Trophy size={20} />, 'Sala de Troféus')}
             {renderSidebarItem('personal', <UserCheck size={20} />, 'Meu Personal')}
+
+            {/* BOTÃO EXCLUSIVO DE ADMIN */}
+            {(profile?.role === 'admin' || isAdmin) && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-brand hover:bg-brand/10 transition-all duration-200 mt-6 border border-brand/20"
+              >
+                <Shield size={20} />
+                <span className="hidden md:inline font-bold">Painel Admin</span>
+              </button>
+            )}
         </div>
         
         <div className="p-4 border-t border-dark-800">
             <div className="bg-dark-800 rounded-lg p-3 flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-bold shrink-0">
-                    {profile?.name.charAt(0)}
+                    {profile?.name?.charAt(0) || 'U'}
                 </div>
                 <div className="overflow-hidden hidden md:block">
-                    <p className="text-sm font-bold text-white truncate">{profile?.name}</p>
+                    <p className="text-sm font-bold text-white truncate">{profile?.name || 'Usuário'}</p>
                     <p className="text-xs text-brand">Nível {stats.level}</p>
                 </div>
             </div>
             <button 
-                onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors text-sm font-medium"
+                onClick={handleBackToHome}
+                className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors text-sm font-medium"
             >
-                <LogOut size={18} />
-                <span className="hidden md:inline">Sair da Conta</span>
+                <Home size={18} />
+                <span className="hidden md:inline">Voltar ao Site</span>
             </button>
         </div>
       </aside>
@@ -191,7 +202,7 @@ const StudentDashboard = () => {
             {activeTab === 'overview' && (
                 <>
                     <header className="mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Olá, {profile?.name.split(' ')[0]}! 👋</h1>
+                        <h1 className="text-3xl font-bold text-white mb-2">Olá, {profile?.name?.split(' ')[0]}! 👋</h1>
                         <p className="text-gray-400">Aqui está o resumo do seu progresso hoje.</p>
                     </header>
 
@@ -355,7 +366,7 @@ const StudentDashboard = () => {
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
-                                        <h4 className={`font-bold ${ach.unlocked ? 'text-white' : 'text-gray-400'}`}>{ach.name}</h4>
+                                        <h4 className={`font-bold ${ach.unlocked ? 'text-white' : 'text-gray-400'}`}>{ach.title}</h4>
                                         {ach.unlocked && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-bold">+{ach.points} XP</span>}
                                     </div>
                                     <p className="text-xs text-gray-500 mb-3">{ach.description}</p>
@@ -458,10 +469,12 @@ const StudentDashboard = () => {
             <Trophy size={20} />
             <span className="text-[10px] mt-1">Troféus</span>
         </button>
-        <button onClick={() => setActiveTab('personal')} className={`p-2 rounded-lg flex flex-col items-center ${activeTab === 'personal' ? 'text-brand' : 'text-gray-500'}`}>
-            <UserCheck size={20} />
-            <span className="text-[10px] mt-1">Personal</span>
-        </button>
+        {(profile?.role === 'admin' || isAdmin) && (
+            <button onClick={() => navigate('/admin')} className="p-2 rounded-lg flex flex-col items-center text-brand">
+                <Shield size={20} />
+                <span className="text-[10px] mt-1">Admin</span>
+            </button>
+        )}
       </div>
     </div>
   );

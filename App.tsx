@@ -30,13 +30,13 @@ const AppContent = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const location = useLocation();
 
-  // Define routes where the main landing page Navbar should NOT appear
-  const hideNavbarRoutes = ['/student', '/admin', '/personal'];
-  const shouldShowNavbar = !hideNavbarRoutes.some(route => location.pathname.startsWith(route));
+  // Define routes where the main landing page Navbar AND WhatsApp button should NOT appear
+  const hidePublicComponentsRoutes = ['/student', '/admin', '/personal'];
+  const shouldShowPublicComponents = !hidePublicComponentsRoutes.some(route => location.pathname.startsWith(route));
 
   return (
     <div className="bg-dark-900 min-h-screen text-gray-100">
-      {shouldShowNavbar && <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />}
+      {shouldShowPublicComponents && <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />}
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
@@ -76,7 +76,7 @@ const AppContent = () => {
         />
       </Routes>
       
-      <WhatsAppFloat />
+      {shouldShowPublicComponents && <WhatsAppFloat />}
     </div>
   );
 };

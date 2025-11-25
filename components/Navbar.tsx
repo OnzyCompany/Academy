@@ -23,8 +23,10 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
   }, []);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    if (window.confirm("Quer realmente sair da sua conta?")) {
+        await signOut();
+        navigate('/');
+    }
   };
 
   const handleNavigation = (sectionId: string) => {
