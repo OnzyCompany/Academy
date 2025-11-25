@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
@@ -28,10 +28,15 @@ const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode
 
 const AppContent = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const location = useLocation();
+
+  // Define routes where the main landing page Navbar should NOT appear
+  const hideNavbarRoutes = ['/student', '/admin', '/personal'];
+  const shouldShowNavbar = !hideNavbarRoutes.some(route => location.pathname.startsWith(route));
 
   return (
     <div className="bg-dark-900 min-h-screen text-gray-100">
-      <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />
+      {shouldShowNavbar && <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />}
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
