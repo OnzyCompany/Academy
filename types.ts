@@ -1,14 +1,18 @@
+
 export interface Profile {
   id: string;
   name: string;
   email: string | null;
   phone: string | null;
-  role: 'admin' | 'student';
+  cpf?: string | null; // Novo campo CPF
+  role: 'admin' | 'student' | 'personal';
   points: number;
-  status: 'active' | 'late' | 'inactive';
+  status: 'active' | 'late' | 'inactive' | 'pending_payment';
   plan?: string;
   due_date?: string;
   created_at: string;
+  personal_id?: string | null;
+  photo_url?: string | null;
 }
 
 export interface Achievement {
@@ -21,6 +25,15 @@ export interface Achievement {
   criteria_type: 'points' | 'workouts' | 'streak' | 'video' | 'custom';
   criteria_value: number;
   active: boolean;
+  badge_url?: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  earned_at: string;
+  achievement?: Achievement;
 }
 
 export interface Exercise {
@@ -38,6 +51,7 @@ export interface Workout {
   description: string;
   exercises: Exercise[];
   created_at: string;
+  personal_id?: string | null;
 }
 
 export interface VideoLesson {
@@ -64,7 +78,10 @@ export interface PersonalTrainer {
   bio?: string;
   access_code: string;
   is_active: boolean;
-  students_count: number;
+  students_count?: number; // Opcional pois pode vir de count(*)
+  payment_info?: string;
+  plans_info?: string;
+  created_at?: string;
 }
 
 export interface UserStats {
