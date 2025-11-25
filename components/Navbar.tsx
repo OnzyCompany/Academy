@@ -36,27 +36,27 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-dark-900/95 backdrop-blur-md border-b border-dark-700 shadow-lg' : 'bg-transparent'
+      scrolled ? 'bg-dark-900/95 backdrop-blur-md border-b border-dark-700 shadow-lg' : 'bg-transparent pt-4'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
+          {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="bg-brand p-2 rounded-lg transform group-hover:rotate-12 transition-transform">
-                <Dumbbell className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-2xl font-black text-white tracking-tighter italic">
-                MONSTER<span className="text-brand">HOUSE</span>
+              <Dumbbell className="h-8 w-8 text-brand transform -rotate-45" />
+              <span className="text-2xl font-bold text-white tracking-tight">
+                Onzy<span className="text-brand">Academy</span>
               </span>
             </Link>
           </div>
           
+          {/* Desktop Menu */}
           <div className="hidden md:block">
-            <div className="ml-10 flex items-center space-x-6">
-              <Link to="/" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Home</Link>
+            <div className="ml-10 flex items-center space-x-8">
+              <Link to="/" className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Início</Link>
+              <button onClick={() => scrollToSection('plans')} className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Planos</button>
               <button onClick={() => scrollToSection('about')} className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Sobre</button>
               <button onClick={() => scrollToSection('gallery')} className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Galeria</button>
-              <button onClick={() => scrollToSection('plans')} className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Planos</button>
               <button onClick={() => scrollToSection('contact')} className="text-gray-300 hover:text-white text-sm font-medium transition-colors">Contato</button>
               
               {user ? (
@@ -75,14 +75,15 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
               ) : (
                 <button 
                   onClick={onOpenAuth}
-                  className="bg-brand hover:bg-brand-dark text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all transform hover:scale-105 shadow-lg shadow-brand/25"
+                  className="bg-brand hover:bg-brand-dark text-white px-6 py-2 rounded-md text-sm font-bold transition-all shadow-lg hover:shadow-brand/25"
                 >
-                  Área do Aluno
+                  Matricule-se
                 </button>
               )}
             </div>
           </div>
           
+          {/* Mobile Menu Button */}
           <div className="-mr-2 flex md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -94,13 +95,15 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
         </div>
       </div>
 
+      {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden bg-dark-900 border-t border-dark-800">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link to="/" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Home</Link>
+            <Link to="/" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Início</Link>
+            <button onClick={() => scrollToSection('plans')} className="text-left w-full text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Planos</button>
             <button onClick={() => scrollToSection('about')} className="text-left w-full text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Sobre</button>
             <button onClick={() => scrollToSection('gallery')} className="text-left w-full text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Galeria</button>
-            <button onClick={() => scrollToSection('plans')} className="text-left w-full text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Planos</button>
+            <button onClick={() => scrollToSection('contact')} className="text-left w-full text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Contato</button>
             
             {user ? (
               <>
@@ -115,9 +118,9 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             ) : (
               <button 
                 onClick={onOpenAuth}
-                className="w-full text-left text-brand hover:text-white block px-3 py-2 rounded-md text-base font-medium font-bold"
+                className="w-full text-left bg-brand text-white block px-3 py-2 rounded-md text-base font-bold mt-4"
               >
-                Entrar / Matricule-se
+                Matricule-se
               </button>
             )}
           </div>

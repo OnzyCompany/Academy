@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import StudentDashboard from './pages/StudentDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import PersonalDashboard from './pages/PersonalDashboard';
+import Success from './pages/Success';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: string[] }) => {
@@ -40,6 +41,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Home onOpenAuth={() => setIsAuthModalOpen(true)} />} />
         
+        <Route path="/success" element={<Success />} />
+
         <Route 
           path="/student" 
           element={
