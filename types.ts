@@ -4,7 +4,7 @@ export interface Profile {
   name: string;
   email: string | null;
   phone: string | null;
-  cpf?: string | null; // Novo campo CPF
+  cpf?: string | null;
   role: 'admin' | 'student' | 'personal';
   points: number;
   status: 'active' | 'late' | 'inactive' | 'pending_payment';
@@ -78,7 +78,7 @@ export interface PersonalTrainer {
   bio?: string;
   access_code: string;
   is_active: boolean;
-  students_count?: number; // Opcional pois pode vir de count(*)
+  students_count?: number;
   payment_info?: string;
   plans_info?: string;
   created_at?: string;

@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Users, DollarSign, CheckCircle, AlertCircle, Dumbbell, Home, UserCheck, LayoutDashboard,
     MessageSquare, BarChart2, Plus, Search, Edit, Trash2, Send, Mail, X, RefreshCw,
-    Trophy, Save, UserPlus, Loader2, TrendingUp, Lock, Unlock, Medal, Award, Target, Flame, Star, Crown, Zap, Heart, CheckSquare, Gift, Sparkles, Rocket, Mountain
+    Trophy, Save, UserPlus, Loader2, TrendingUp, Lock, Unlock, Medal, Award, Target, Flame, Star, Crown, Zap, Heart, CheckSquare, Gift, Sparkles, Rocket, Mountain,
+    Download, Clock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Workout, PersonalTrainer, Achievement, Profile } from '../types';
 
-// Ícones disponíveis para conquistas
 const AVAILABLE_ICONS = [
     'Trophy', 'Medal', 'Award', 'Target', 'Flame',
     'Star', 'Crown', 'Zap', 'Heart', 'TrendingUp',
@@ -21,29 +21,25 @@ const AdminDashboard = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'personals' | 'workouts' | 'achievements' | 'communication' | 'reports'>('overview');
+  const [communicationTab, setCommunicationTab] = useState<'send' | 'templates' | 'history'>('send');
   const [loading, setLoading] = useState(true);
   
-  // --- DATA STATES (Real Data) ---
   const [students, setStudents] = useState<Profile[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [personals, setPersonals] = useState<PersonalTrainer[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
 
-  // --- MODALS STATE ---
   const [showPersonalModal, setShowPersonalModal] = useState(false);
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   
-  // --- EDITING STATE ---
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Profile | null>(null);
 
-  // --- SEARCH ---
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- FORMS STATE ---
   const [personalForm, setPersonalForm] = useState({
     name: '', email: '', phone: '', photo_url: '', specialty: '', bio: '', access_code: ''
   });
@@ -66,7 +62,6 @@ const AdminDashboard = () => {
       name: '', phone: '', cpf: '', plan: '', status: ''
   });
 
-  // --- FETCH DATA ---
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -74,7 +69,8 @@ const AdminDashboard = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-        const { data: studentsData } = await supabase.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false });
+        // Busca todos os perfis para o admin ver, sem filtro de role
+        const { data: studentsData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (studentsData) setStudents(studentsData);
 
         const { data: personalsData } = await supabase.from('personal_trainers').select('*').order('created_at', { ascending: false });
@@ -93,12 +89,12 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- HELPERS ---
   const generateAccessCode = (name: string) => {
     if (!name) return '';
-    const prefix = name.split(' ')[0].toUpperCase().substring(0, 5).replace(/[^A-Z]/g, '');
-    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${randomPart}`;
+    const cleanName = name.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '');
+    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const year = new Date().getFullYear();
+    return `${cleanName}-${randomChars}-${year}`;
   };
 
   const renderIconByName = (iconName: string, size: number = 20) => {
@@ -126,11 +122,9 @@ const AdminDashboard = () => {
 
   // --- ACTION HANDLERS ---
 
-  // 1. Salvar Personal
   const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-        // Não enviar students_count pois é um campo computado ou default
         const payload = {
             name: personalForm.name,
             email: personalForm.email,
@@ -140,6 +134,7 @@ const AdminDashboard = () => {
             bio: personalForm.bio,
             access_code: personalForm.access_code,
             is_active: true
+            // Removed students_count to avoid errors if column is missing or handled by DB trigger
         };
 
         const { data, error } = await supabase.from('personal_trainers').insert([payload]).select();
@@ -155,16 +150,22 @@ const AdminDashboard = () => {
     }
   };
 
-  // 2. Salvar Treino
   const handleSaveWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-        const payload = { ...workoutForm, personal_id: null };
+        const payload = {
+            title: workoutForm.title,
+            category: workoutForm.category,
+            difficulty: workoutForm.difficulty,
+            description: workoutForm.description,
+            exercises: workoutForm.exercises, 
+            personal_id: null
+        };
         
         if (editingWorkoutId) {
             const { error } = await supabase.from('workouts').update(payload).eq('id', editingWorkoutId);
             if (error) throw error;
-            setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, id: editingWorkoutId, created_at: new Date().toISOString(), ...workoutForm } : w));
+            setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, ...payload, created_at: w.created_at } : w));
             alert(`Treino atualizado!`);
         } else {
             const { data, error } = await supabase.from('workouts').insert([payload]).select();
@@ -178,13 +179,20 @@ const AdminDashboard = () => {
     }
   };
 
-  // 3. Salvar Conquista
   const handleCreateAchievement = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-        const payload = { ...achievementForm };
-        // Remover badge_url se estiver vazio para evitar erro de constraint se houver
-        if (!payload.badge_url) delete (payload as any).badge_url;
+        const payload = {
+            title: achievementForm.title, // Using TITLE as per new schema
+            description: achievementForm.description,
+            icon: achievementForm.icon,
+            color: achievementForm.color,
+            points: achievementForm.points,
+            criteria_type: achievementForm.criteria_type,
+            criteria_value: achievementForm.criteria_value,
+            active: true,
+            badge_url: '' 
+        };
 
         const { data, error } = await supabase.from('achievements').insert([payload]).select();
         if (error) throw error;
@@ -196,7 +204,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 4. ATIVAR ALUNO MANUALMENTE
   const handleActivateStudent = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
@@ -221,7 +228,6 @@ const AdminDashboard = () => {
       }
   };
 
-  // 5. EDITAR ALUNO (CPF)
   const handleEditStudent = (student: Profile) => {
       setEditingStudent(student);
       setEditStudentForm({
@@ -248,7 +254,11 @@ const AdminDashboard = () => {
 
           if (error) throw error;
           
-          setStudents(prev => prev.map(s => s.id === editingStudent.id ? { ...s, ...editStudentForm } : s));
+          setStudents(prev => prev.map(s => s.id === editingStudent.id ? { 
+            ...s, 
+            ...editStudentForm, 
+            status: editStudentForm.status as Profile['status'] 
+          } : s));
           setShowEditStudentModal(false);
           alert('Dados do aluno atualizados!');
       } catch (err: any) {
@@ -256,7 +266,6 @@ const AdminDashboard = () => {
       }
   };
 
-  // CRUD Helpers
   const handleOpenWorkoutModal = (workout?: Workout) => {
       if (workout) {
           setEditingWorkoutId(workout.id);
@@ -488,25 +497,75 @@ const AdminDashboard = () => {
 
                     {/* --- COMUNICAÇÃO --- */}
                     {activeTab === 'communication' && (
-                        <div className="bg-dark-800 rounded-lg border border-dark-700 p-8 text-center">
-                            <MessageSquare className="w-16 h-16 mx-auto text-brand mb-4 opacity-20" />
-                            <h3 className="text-xl font-bold text-white mb-2">Central de Comunicação</h3>
-                            <p className="text-gray-400 mb-6 max-w-lg mx-auto">Envie notificações e e-mails para todos os alunos ou grupos específicos.</p>
-                            
-                            <div className="bg-dark-900 p-6 rounded-lg border border-dark-600 max-w-2xl mx-auto text-left">
-                                <div className="mb-4">
-                                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Título da Mensagem</label>
-                                    <input type="text" className="w-full bg-dark-800 border border-dark-600 rounded p-2 text-white text-sm focus:border-brand outline-none" placeholder="Ex: Aviso Importante" />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Conteúdo</label>
-                                    <textarea rows={4} className="w-full bg-dark-800 border border-dark-600 rounded p-2 text-white text-sm focus:border-brand outline-none" placeholder="Digite sua mensagem aqui..." />
-                                </div>
-                                <div className="flex justify-end">
-                                    <button className="bg-brand hover:bg-brand-dark text-white px-6 py-2 rounded font-bold flex items-center gap-2 text-sm">
-                                        <Send size={16} /> Enviar Agora
-                                    </button>
-                                </div>
+                        <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+                            <div className="flex border-b border-dark-700">
+                                <button onClick={() => setCommunicationTab('send')} className={`px-6 py-4 text-sm font-bold transition-colors ${communicationTab === 'send' ? 'text-brand border-b-2 border-brand bg-dark-700/30' : 'text-gray-400 hover:text-white'}`}>
+                                    Enviar Comunicação
+                                </button>
+                                <button onClick={() => setCommunicationTab('templates')} className={`px-6 py-4 text-sm font-bold transition-colors ${communicationTab === 'templates' ? 'text-brand border-b-2 border-brand bg-dark-700/30' : 'text-gray-400 hover:text-white'}`}>
+                                    Templates
+                                </button>
+                                <button onClick={() => setCommunicationTab('history')} className={`px-6 py-4 text-sm font-bold transition-colors ${communicationTab === 'history' ? 'text-brand border-b-2 border-brand bg-dark-700/30' : 'text-gray-400 hover:text-white'}`}>
+                                    Histórico
+                                </button>
+                            </div>
+
+                            <div className="p-8">
+                                {communicationTab === 'send' && (
+                                    <div className="max-w-3xl mx-auto">
+                                        <div className="bg-dark-900 p-6 rounded-lg border border-dark-600 mb-6">
+                                            <div className="grid grid-cols-1 gap-6">
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Destinatários</label>
+                                                    <select className="w-full bg-dark-800 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none">
+                                                        <option>Todos os usuários</option>
+                                                        <option>Usuários Ativos</option>
+                                                        <option>Usuários Inativos</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Tipo de Envio</label>
+                                                    <div className="flex gap-4">
+                                                        <label className="flex items-center gap-2 text-sm text-gray-300 font-medium cursor-pointer">
+                                                            <input type="radio" name="type" defaultChecked className="accent-brand w-4 h-4" /> Notificação In-App
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-sm text-gray-300 font-medium cursor-pointer">
+                                                            <input type="radio" name="type" className="accent-brand w-4 h-4" /> Email
+                                                        </label>
+                                                        <label className="flex items-center gap-2 text-sm text-gray-300 font-medium cursor-pointer">
+                                                            <input type="radio" name="type" className="accent-brand w-4 h-4" /> Ambos
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Template</label>
+                                                    <select className="w-full bg-dark-800 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none">
+                                                        <option>Selecione um template</option>
+                                                        <option>Boas vindas</option>
+                                                        <option>Cobrança</option>
+                                                        <option>Aviso Geral</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {communicationTab === 'history' && (
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-dark-900 text-gray-400 text-xs uppercase">
+                                            <tr>
+                                                <th className="px-4 py-3">Data</th>
+                                                <th className="px-4 py-3">Usuário</th>
+                                                <th className="px-4 py-3">Tipo</th>
+                                                <th className="px-4 py-3">Assunto</th>
+                                                <th className="px-4 py-3">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-gray-500 text-sm">
+                                            <tr><td colSpan={5} className="px-4 py-8 text-center">Nenhum histórico encontrado.</td></tr>
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </div>
                     )}
@@ -514,27 +573,46 @@ const AdminDashboard = () => {
                     {/* --- RELATÓRIOS --- */}
                     {activeTab === 'reports' && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4">Novos Alunos (Mês)</h3>
-                                    <div className="flex items-end gap-2">
-                                        <div className="w-full bg-dark-900 h-32 rounded-lg relative overflow-hidden flex items-end px-2 gap-1">
-                                            {[40, 60, 30, 80, 50, 90, 70].map((h, i) => (
-                                                <div key={i} style={{height: `${h}%`}} className="flex-1 bg-brand/50 hover:bg-brand rounded-t transition-all"></div>
-                                            ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                                    <h3 className="text-white font-bold text-sm mb-6">Relatório Financeiro</h3>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Receita Mensal</span>
+                                            <span className="text-white font-bold">R$ {stats.revenue.toLocaleString()}</span>
                                         </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Receita Anual</span>
+                                            <span className="text-white font-bold">R$ {stats.revenue * 12}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Ticket Médio</span>
+                                            <span className="text-white font-bold">R$ {stats.users > 0 ? (stats.revenue / stats.users).toFixed(2) : '0.00'}</span>
+                                        </div>
+                                        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-xs mt-4 transition-colors">
+                                            Gerar Relatório Completo
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4">Taxa de Retenção</h3>
-                                    <div className="flex items-center justify-center h-32">
-                                        <div className="text-4xl font-black text-white">98.5%</div>
-                                    </div>
-                                </div>
-                                <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4">Receita Mensal</h3>
-                                    <div className="flex items-center justify-center h-32">
-                                        <div className="text-4xl font-black text-green-500">R$ {stats.revenue.toLocaleString()}</div>
+
+                                <div className="bg-dark-800 rounded-xl border border-dark-700 p-6">
+                                    <h3 className="text-white font-bold text-sm mb-6">Frequência de Alunos</h3>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Alunos Ativos</span>
+                                            <span className="text-white font-bold">{stats.activeSubs}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Taxa de Atividade</span>
+                                            <span className="text-white font-bold">0%</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-dark-700">
+                                            <span className="text-gray-400 text-xs">Novos este mês</span>
+                                            <span className="text-white font-bold">0</span>
+                                        </div>
+                                        <button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded text-xs mt-4 transition-colors flex items-center justify-center gap-2">
+                                            Exportar Dados
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -614,8 +692,18 @@ const AdminDashboard = () => {
                     {/* --- CONQUISTAS --- */}
                     {activeTab === 'achievements' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div 
+                                onClick={() => setShowAchievementModal(true)}
+                                className="bg-dark-800 border-2 border-dashed border-dark-700 hover:border-brand hover:bg-dark-700/50 rounded-lg flex flex-col items-center justify-center p-6 cursor-pointer transition-all min-h-[200px] group"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-dark-700 flex items-center justify-center mb-3 group-hover:bg-brand group-hover:text-white transition-colors">
+                                    <Plus size={24} />
+                                </div>
+                                <span className="text-sm font-bold text-gray-400 group-hover:text-white">Criar Nova Conquista</span>
+                            </div>
                             {achievements.map((ach, i) => (
-                                <div key={i} className="bg-dark-800 p-6 rounded-lg border border-dark-700 flex flex-col items-center text-center relative">
+                                <div key={i} className="bg-dark-800 p-6 rounded-lg border border-dark-700 flex flex-col items-center text-center relative group">
+                                    <button className="absolute top-3 right-3 text-gray-500 hover:text-white"><Edit size={14} /></button>
                                     <div className={`w-16 h-16 rounded-full bg-${ach.color}-500/10 flex items-center justify-center mb-4 text-${ach.color}-500 ring-1 ring-${ach.color}-500/20`}>
                                         {renderIconByName(ach.icon, 28)}
                                     </div>
@@ -634,7 +722,185 @@ const AdminDashboard = () => {
         </div>
       </main>
 
-      {/* MODAL EDITAR ALUNO (CPF) */}
+      {/* MODAL PERSONAL AVANÇADO */}
+      {showPersonalModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-dark-800 rounded-xl w-full max-w-2xl overflow-hidden border border-dark-700 shadow-2xl">
+                <div className="p-6 border-b border-dark-700 flex justify-between items-center bg-dark-800">
+                    <h2 className="text-lg font-bold text-white">Cadastrar Novo Personal</h2>
+                    <button onClick={() => setShowPersonalModal(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+                </div>
+                <form onSubmit={handleSavePersonal} className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Nome Completo *</label>
+                            <input type="text" required className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                                value={personalForm.name} onChange={e => {
+                                    setPersonalForm({...personalForm, name: e.target.value});
+                                    if(!personalForm.access_code) setPersonalForm(prev => ({...prev, name: e.target.value, access_code: generateAccessCode(e.target.value)}));
+                                }} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Email *</label>
+                            <input type="email" required className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                                value={personalForm.email} onChange={e => setPersonalForm({...personalForm, email: e.target.value})} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Telefone</label>
+                            <input type="text" className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                                value={personalForm.phone} onChange={e => setPersonalForm({...personalForm, phone: e.target.value})} 
+                                placeholder="(00) 00000-0000" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">URL da Foto de Perfil</label>
+                            <input type="text" className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                                value={personalForm.photo_url} onChange={e => setPersonalForm({...personalForm, photo_url: e.target.value})} 
+                                placeholder="https://..." />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-400 uppercase">Especialidade</label>
+                            <select className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                                value={personalForm.specialty} onChange={e => setPersonalForm({...personalForm, specialty: e.target.value})}>
+                                <option value="">Selecione</option>
+                                <option value="Musculação">Musculação</option>
+                                <option value="Crossfit">Crossfit</option>
+                                <option value="Funcional">Funcional</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-red-500 uppercase">Código de Acesso</label>
+                            <div className="flex gap-2">
+                                <input type="text" className="w-full bg-dark-900 border border-red-500/30 rounded-lg p-3 text-white text-sm font-mono font-bold uppercase focus:border-red-500 outline-none"
+                                    value={personalForm.access_code} onChange={e => setPersonalForm({...personalForm, access_code: e.target.value.toUpperCase()})} />
+                                <button type="button" onClick={() => setPersonalForm(prev => ({...prev, access_code: generateAccessCode(prev.name)}))} className="p-3 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600"><RefreshCw size={18} /></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-400 uppercase">Biografia (máx. 500 caracteres)</label>
+                        <textarea rows={3} className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm focus:border-brand outline-none"
+                            value={personalForm.bio} onChange={e => setPersonalForm({...personalForm, bio: e.target.value})}
+                            placeholder="Descreva a experiência e qualificações do personal..." maxLength={500} />
+                        <p className="text-right text-xs text-gray-600">{personalForm.bio.length}/500</p>
+                    </div>
+
+                    <div className="flex gap-4 pt-2 border-t border-dark-700">
+                        <button type="button" onClick={() => setShowPersonalModal(false)} className="flex-1 bg-dark-700 hover:bg-dark-600 text-white font-bold py-3 rounded-lg transition-colors text-sm">Cancelar</button>
+                        <button type="submit" className="flex-1 bg-brand hover:bg-brand-dark text-white font-bold py-3 rounded-lg transition-colors text-sm">Cadastrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* MODAL CONQUISTA AVANÇADO (2 Colunas) */}
+      {showAchievementModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-dark-800 rounded-xl w-full max-w-4xl overflow-hidden border border-dark-700 shadow-2xl flex flex-col md:flex-row h-[600px]">
+                
+                {/* Lado Esquerdo: Form */}
+                <div className="flex-1 p-8 overflow-y-auto border-r border-dark-700">
+                    <h2 className="text-xl font-bold text-white mb-6">Criar Nova Conquista</h2>
+                    <form onSubmit={handleCreateAchievement} className="space-y-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Título *</label>
+                                <input type="text" required className="w-full bg-dark-900 border border-dark-600 rounded-lg p-2.5 text-white text-sm focus:border-brand outline-none"
+                                    value={achievementForm.title} onChange={e => setAchievementForm({...achievementForm, title: e.target.value})} placeholder="Ex: Guerreiro Iniciante" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Pontos (XP)</label>
+                                <input type="number" required className="w-full bg-dark-900 border border-dark-600 rounded-lg p-2.5 text-white text-sm focus:border-brand outline-none"
+                                    value={achievementForm.points} onChange={e => setAchievementForm({...achievementForm, points: parseInt(e.target.value)})} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Descrição *</label>
+                            <textarea required rows={2} className="w-full bg-dark-900 border border-dark-600 rounded-lg p-2.5 text-white text-sm focus:border-brand outline-none"
+                                value={achievementForm.description} onChange={e => setAchievementForm({...achievementForm, description: e.target.value})} placeholder="Descreva o que o aluno deve fazer..." />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Critério</label>
+                                <select className="w-full bg-dark-900 border border-dark-600 rounded-lg p-2.5 text-white text-sm focus:border-brand outline-none"
+                                    // @ts-ignore
+                                    value={achievementForm.criteria_type} onChange={e => setAchievementForm({...achievementForm, criteria_type: e.target.value})}>
+                                    <option value="points">Por Pontos</option>
+                                    <option value="workouts">Por Treinos</option>
+                                    <option value="streak">Por Sequência</option>
+                                    <option value="video">Por Vídeos</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Valor Alvo</label>
+                                <input type="number" required className="w-full bg-dark-900 border border-dark-600 rounded-lg p-2.5 text-white text-sm focus:border-brand outline-none"
+                                    value={achievementForm.criteria_value} onChange={e => setAchievementForm({...achievementForm, criteria_value: parseInt(e.target.value)})} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Ícone *</label>
+                            <div className="grid grid-cols-7 gap-2 max-h-32 overflow-y-auto p-1">
+                                {AVAILABLE_ICONS.map(icon => (
+                                    <button key={icon} type="button" onClick={() => setAchievementForm({...achievementForm, icon})}
+                                        className={`p-2 rounded-lg border flex items-center justify-center transition-all ${achievementForm.icon === icon ? 'bg-brand text-white border-brand' : 'bg-dark-900 text-gray-500 border-dark-600 hover:border-gray-400'}`}>
+                                        {renderIconByName(icon, 18)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Cor</label>
+                            <div className="flex gap-3">
+                                {['yellow', 'red', 'blue', 'green', 'purple'].map(color => (
+                                    <button key={color} type="button" onClick={() => setAchievementForm({...achievementForm, color})}
+                                        className={`w-8 h-8 rounded-full border-2 transition-transform ${achievementForm.color === color ? 'border-white scale-110 ring-2 ring-offset-2 ring-offset-dark-800 ring-white' : 'border-transparent hover:scale-105'} bg-${color}-500`} />
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <button type="button" onClick={() => setShowAchievementModal(false)} className="flex-1 bg-dark-700 hover:bg-dark-600 text-white py-3 rounded-lg text-sm font-bold transition-colors">Cancelar</button>
+                            <button type="submit" className="flex-1 bg-brand hover:bg-brand-dark text-white py-3 rounded-lg text-sm font-bold transition-colors">Criar Conquista</button>
+                        </div>
+                    </form>
+                </div>
+
+                {/* Lado Direito: Preview */}
+                <div className="w-full md:w-[350px] bg-dark-900 flex flex-col items-center justify-center border-l border-dark-700 p-8 relative">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand/5 via-transparent to-transparent opacity-50"></div>
+                    <h3 className="text-gray-500 text-xs uppercase font-bold mb-8 z-10">Preview da Conquista</h3>
+                    
+                    <div className="bg-dark-800 p-8 rounded-xl border border-dark-600 flex flex-col items-center text-center w-full max-w-[260px] shadow-2xl relative z-10 group">
+                        <div className={`w-24 h-24 rounded-full bg-${achievementForm.color}-500/10 flex items-center justify-center mb-6 text-${achievementForm.color}-500 ring-1 ring-${achievementForm.color}-500/20 group-hover:scale-110 transition-transform duration-300`}>
+                            {renderIconByName(achievementForm.icon, 48)}
+                        </div>
+                        <h3 className="text-white font-bold text-lg mb-2">{achievementForm.title || "Título da Conquista"}</h3>
+                        <p className="text-gray-500 text-xs mb-6 leading-relaxed">{achievementForm.description || "Descrição da conquista aparecerá aqui..."}</p>
+                        
+                        <div className="w-full pt-4 border-t border-dark-700/50 text-center">
+                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Para desbloquear:</p>
+                            <p className="text-xs text-white font-mono">
+                                {achievementForm.criteria_type === 'points' && `Atingir ${achievementForm.criteria_value} pontos totais`}
+                                {achievementForm.criteria_type === 'workouts' && `Completar ${achievementForm.criteria_value} treinos`}
+                                {achievementForm.criteria_type === 'streak' && `Manter ${achievementForm.criteria_value} dias de ofensiva`}
+                                {achievementForm.criteria_type === 'video' && `Assistir ${achievementForm.criteria_value} aulas`}
+                                {achievementForm.criteria_type === 'custom' && `Critério manual`}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR ALUNO */}
       {showEditStudentModal && editingStudent && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
               <div className="bg-dark-800 rounded-lg w-full max-w-md overflow-hidden border border-dark-700 shadow-2xl">
@@ -716,56 +982,7 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* MODAIS EXISTENTES (PERSONAL, TREINO, CONQUISTA) MANTIDOS */}
-      {showPersonalModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-dark-800 rounded-lg w-full max-w-2xl overflow-hidden border border-dark-700 shadow-2xl">
-                <div className="p-6 border-b border-dark-700 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-white">Cadastrar Novo Personal</h2>
-                    <button onClick={() => setShowPersonalModal(false)} className="text-gray-400 hover:text-white">
-                        <X size={24} />
-                    </button>
-                </div>
-                <form onSubmit={handleSavePersonal} className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Nome Completo *</label>
-                            <input type="text" required className="w-full bg-dark-900 border border-dark-600 rounded p-3 text-white text-sm focus:border-brand outline-none"
-                                value={personalForm.name} onChange={e => {
-                                    setPersonalForm({...personalForm, name: e.target.value});
-                                    if(!personalForm.access_code) setPersonalForm(prev => ({...prev, name: e.target.value, access_code: generateAccessCode(e.target.value)}));
-                                }} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Email *</label>
-                            <input type="email" required className="w-full bg-dark-900 border border-dark-600 rounded p-3 text-white text-sm focus:border-brand outline-none"
-                                value={personalForm.email} onChange={e => setPersonalForm({...personalForm, email: e.target.value})} />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Especialidade</label>
-                            <input type="text" className="w-full bg-dark-900 border border-dark-600 rounded p-3 text-white text-sm focus:border-brand outline-none"
-                                placeholder="Ex: Musculação" value={personalForm.specialty} onChange={e => setPersonalForm({...personalForm, specialty: e.target.value})} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-brand uppercase">Código de Acesso</label>
-                            <div className="flex gap-2">
-                                <input type="text" className="w-full bg-dark-900 border border-brand/30 rounded p-3 text-white text-sm font-mono font-bold focus:border-brand outline-none uppercase"
-                                    value={personalForm.access_code} onChange={e => setPersonalForm({...personalForm, access_code: e.target.value.toUpperCase()})} />
-                                <button type="button" onClick={() => setPersonalForm(prev => ({...prev, access_code: generateAccessCode(prev.name)}))} className="p-3 bg-dark-700 text-gray-300 rounded hover:bg-dark-600"><RefreshCw size={18} /></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex gap-4 pt-4">
-                        <button type="button" onClick={() => setShowPersonalModal(false)} className="flex-1 bg-dark-700 hover:bg-dark-600 text-white font-bold py-3 rounded transition-colors text-sm">Cancelar</button>
-                        <button type="submit" className="flex-1 bg-brand hover:bg-brand-dark text-white font-bold py-3 rounded transition-colors text-sm">Salvar Personal</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-      )}
-
+      {/* MODAL TREINO */}
       {showWorkoutModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-dark-800 rounded-lg w-full max-w-4xl overflow-hidden border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
@@ -827,88 +1044,6 @@ const AdminDashboard = () => {
                 <div className="p-6 border-t border-dark-700 bg-dark-800 flex justify-end gap-3">
                     <button type="button" onClick={() => setShowWorkoutModal(false)} className="bg-dark-700 hover:bg-dark-600 text-white font-bold py-2 px-4 rounded text-sm">Cancelar</button>
                     <button type="button" onClick={handleSaveWorkout} className="bg-brand hover:bg-brand-dark text-white font-bold py-2 px-6 rounded text-sm flex items-center gap-2"><Save size={16} /> Salvar Treino</button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {showAchievementModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-dark-800 rounded-lg w-full max-w-3xl overflow-hidden border border-dark-700 shadow-2xl flex flex-col md:flex-row">
-                <div className="p-6 flex-1 border-r border-dark-700 overflow-y-auto max-h-[90vh]">
-                    <h2 className="text-lg font-bold text-white mb-6">Criar Nova Conquista</h2>
-                    <form onSubmit={handleCreateAchievement} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Título</label>
-                                <input type="text" required className="w-full bg-dark-900 border border-dark-600 rounded p-2.5 text-white text-sm focus:border-brand outline-none"
-                                    value={achievementForm.title} onChange={e => setAchievementForm({...achievementForm, title: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Pontos (XP)</label>
-                                <input type="number" required className="w-full bg-dark-900 border border-dark-600 rounded p-2.5 text-white text-sm focus:border-brand outline-none"
-                                    value={achievementForm.points} onChange={e => setAchievementForm({...achievementForm, points: parseInt(e.target.value)})} />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Descrição</label>
-                            <textarea required rows={2} className="w-full bg-dark-900 border border-dark-600 rounded p-2.5 text-white text-sm focus:border-brand outline-none"
-                                value={achievementForm.description} onChange={e => setAchievementForm({...achievementForm, description: e.target.value})} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Critério</label>
-                                <select className="w-full bg-dark-900 border border-dark-600 rounded p-2.5 text-white text-sm focus:border-brand outline-none"
-                                    // @ts-ignore
-                                    value={achievementForm.criteria_type} onChange={e => setAchievementForm({...achievementForm, criteria_type: e.target.value})}>
-                                    <option value="points">Por Pontos</option>
-                                    <option value="workouts">Por Treinos</option>
-                                    <option value="streak">Por Sequência</option>
-                                    <option value="video">Por Vídeos Assistidos</option>
-                                    <option value="custom">Personalizado (Manual)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Valor Alvo</label>
-                                <input type="number" required className="w-full bg-dark-900 border border-dark-600 rounded p-2.5 text-white text-sm focus:border-brand outline-none"
-                                    value={achievementForm.criteria_value} onChange={e => setAchievementForm({...achievementForm, criteria_value: parseInt(e.target.value)})} />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Ícone</label>
-                            <div className="grid grid-cols-8 gap-2">
-                                {AVAILABLE_ICONS.map(icon => (
-                                    <button key={icon} type="button" onClick={() => setAchievementForm({...achievementForm, icon})}
-                                        className={`p-2 rounded border flex items-center justify-center ${achievementForm.icon === icon ? 'bg-brand text-white border-brand' : 'bg-dark-900 text-gray-500 border-dark-600 hover:border-gray-400'}`}>
-                                        {renderIconByName(icon, 16)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Cor</label>
-                            <div className="flex gap-2">
-                                {['yellow', 'red', 'blue', 'green', 'purple'].map(color => (
-                                    <button key={color} type="button" onClick={() => setAchievementForm({...achievementForm, color})}
-                                        className={`w-6 h-6 rounded-full border-2 ${achievementForm.color === color ? 'border-white scale-110' : 'border-transparent'} bg-${color}-500`} />
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex gap-3 pt-4">
-                            <button type="button" onClick={() => setShowAchievementModal(false)} className="flex-1 bg-dark-700 text-white py-3 rounded text-sm font-bold">Cancelar</button>
-                            <button type="submit" className="flex-1 bg-brand text-white py-3 rounded text-sm font-bold">Criar Conquista</button>
-                        </div>
-                    </form>
-                </div>
-                <div className="p-6 w-full md:w-1/3 bg-dark-900 flex flex-col items-center justify-center border-l border-dark-700">
-                    <h3 className="text-gray-500 text-[10px] uppercase font-bold mb-8">Preview</h3>
-                    <div className="bg-dark-800 p-6 rounded-lg border border-dark-700 flex flex-col items-center text-center w-full max-w-[200px] shadow-xl">
-                        <div className={`w-16 h-16 rounded-full bg-${achievementForm.color}-500/10 flex items-center justify-center mb-4 text-${achievementForm.color}-500 ring-1 ring-${achievementForm.color}-500/20`}>
-                            {renderIconByName(achievementForm.icon, 28)}
-                        </div>
-                        <h3 className="text-white font-bold text-sm mb-1">{achievementForm.title || "Título..."}</h3>
-                        <p className="text-gray-500 text-[10px]">{achievementForm.description || "Descrição..."}</p>
-                    </div>
                 </div>
             </div>
         </div>
