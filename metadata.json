@@ -1,0 +1,8 @@
+{
+  "name": "Onzy Academy",
+  "description": "Complete Gym Management System with Gamification, Video Lessons, and Admin/Personal Trainer portals.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

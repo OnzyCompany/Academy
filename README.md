@@ -1,11 +1,26 @@
-<div align="center">
+# Onzy Academy
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+## Next Steps
 
-  <h1>Built with AI Studio</h2>
+1.  **Supabase Setup**:
+    *   Create a project at https://supabase.com.
+    *   Run the SQL migrations provided in your prompt in the Supabase SQL Editor.
+    *   Get your `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Project Settings > API.
+    *   Create a `.env` file (or set in your deployment platform) with:
+        ```
+        VITE_SUPABASE_URL=your_url
+        VITE_SUPABASE_ANON_KEY=your_key
+        ```
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+2.  **Stripe Integration**:
+    *   Deploy the Edge Functions (`stripe-checkout`, `stripe-webhook`) to Supabase.
+    *   Update `lib/stripe.ts` (create this file if using real payments) to call the `stripe-checkout` function.
+    *   Configure Stripe Webhooks to point to your Supabase function URL.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+3.  **Deploy**:
+    *   Run `npm install`.
+    *   Run `npm run build`.
+    *   Deploy to Vercel or Netlify.
 
-</div>
+4.  **Admin Access**:
+    *   Manually update a user's `role` to `'admin'` in the `profiles` table in Supabase to access the Admin Dashboard.
