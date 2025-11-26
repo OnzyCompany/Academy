@@ -21,17 +21,24 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  // Mocking personal trainer auth state for this demo since it uses a custom table
   const [isPersonal, setIsPersonal] = useState(false); 
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else setLoading(false);
-    });
+    // Get initial session with error handling
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.error("Erro crítico ao iniciar sessão:", err);
+        setLoading(false); // Garante que o loading pare mesmo com erro
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -57,7 +64,7 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
       
       if (error) {
         console.error('Error fetching profile:', error);
-        // Fallback for demo if table doesn't exist yet
+        // Fallback seguro para evitar crash
         setProfile({
             id: userId,
             name: user?.email?.split('@')[0] || 'User',
