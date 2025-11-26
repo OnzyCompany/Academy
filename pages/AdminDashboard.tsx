@@ -36,6 +36,7 @@ const AdminDashboard = () => {
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [editingAchievementId, setEditingAchievementId] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Profile | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,7 +70,7 @@ const AdminDashboard = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-        // Busca todos os perfis para o admin ver, sem filtro de role
+        // Fetch all profiles to allow admin to edit self and others
         const { data: studentsData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
         if (studentsData) setStudents(studentsData);
 
@@ -92,9 +93,9 @@ const AdminDashboard = () => {
   const generateAccessCode = (name: string) => {
     if (!name) return '';
     const cleanName = name.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '');
-    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
     const year = new Date().getFullYear();
-    return `${cleanName}-${randomChars}-${year}`;
+    return `${cleanName}-${randomPart}-${year}`;
   };
 
   const renderIconByName = (iconName: string, size: number = 20) => {
@@ -120,8 +121,6 @@ const AdminDashboard = () => {
   const handleBackToHome = () => navigate('/');
   const handleBackToStudent = () => navigate('/student');
 
-  // --- ACTION HANDLERS ---
-
   const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -134,7 +133,6 @@ const AdminDashboard = () => {
             bio: personalForm.bio,
             access_code: personalForm.access_code,
             is_active: true
-            // Removed students_count to avoid errors if column is missing or handled by DB trigger
         };
 
         const { data, error } = await supabase.from('personal_trainers').insert([payload]).select();
@@ -179,29 +177,61 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCreateAchievement = async (e: React.FormEvent) => {
+  const handleSaveAchievement = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
         const payload = {
-            title: achievementForm.title, // Using TITLE as per new schema
+            title: achievementForm.title,
             description: achievementForm.description,
             icon: achievementForm.icon,
             color: achievementForm.color,
             points: achievementForm.points,
-            criteria_type: achievementForm.criteria_type,
+            criteria_type: achievementForm.criteria_type as Achievement['criteria_type'],
             criteria_value: achievementForm.criteria_value,
             active: true,
             badge_url: '' 
         };
 
-        const { data, error } = await supabase.from('achievements').insert([payload]).select();
-        if (error) throw error;
-        if (data) setAchievements([data[0], ...achievements]);
+        if (editingAchievementId) {
+            const { error } = await supabase.from('achievements').update(payload).eq('id', editingAchievementId);
+            if (error) throw error;
+            setAchievements(prev => prev.map(a => a.id === editingAchievementId ? { ...a, ...payload } : a));
+            alert('Conquista atualizada com sucesso!');
+        } else {
+            const { data, error } = await supabase.from('achievements').insert([payload]).select();
+            if (error) throw error;
+            if (data) setAchievements([data[0], ...achievements]);
+            alert('Conquista criada com sucesso!');
+        }
         setShowAchievementModal(false);
-        alert('Conquista criada com sucesso!');
     } catch (err: any) {
-        alert('Erro ao criar conquista: ' + JSON.stringify(err));
+        alert('Erro ao salvar conquista: ' + JSON.stringify(err));
     }
+  };
+
+  const handleEditAchievement = (achievement: Achievement) => {
+      setEditingAchievementId(achievement.id);
+      setAchievementForm({
+          title: achievement.title,
+          description: achievement.description,
+          icon: achievement.icon,
+          color: achievement.color,
+          points: achievement.points,
+          criteria_type: achievement.criteria_type,
+          criteria_value: achievement.criteria_value,
+          badge_url: achievement.badge_url || '',
+          active: achievement.active
+      });
+      setShowAchievementModal(true);
+  };
+
+  const handleOpenCreateAchievement = () => {
+      setEditingAchievementId(null);
+      setAchievementForm({
+        title: '', description: '', icon: 'Trophy', color: 'yellow',
+        points: 100, criteria_type: 'points', criteria_value: 100, badge_url: '', active: true
+      });
+      setShowAchievementModal(true);
   };
 
   const handleActivateStudent = async (e: React.FormEvent) => {
@@ -405,7 +435,7 @@ const AdminDashboard = () => {
                         </button>
                     )}
                     {activeTab === 'achievements' && (
-                        <button onClick={() => setShowAchievementModal(true)} className="bg-brand hover:bg-brand-dark text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm transition-all shadow-lg shadow-brand/20">
+                        <button onClick={handleOpenCreateAchievement} className="bg-brand hover:bg-brand-dark text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm transition-all shadow-lg shadow-brand/20">
                             <Plus size={18} /> Nova Conquista
                         </button>
                     )}
@@ -693,7 +723,7 @@ const AdminDashboard = () => {
                     {activeTab === 'achievements' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div 
-                                onClick={() => setShowAchievementModal(true)}
+                                onClick={handleOpenCreateAchievement}
                                 className="bg-dark-800 border-2 border-dashed border-dark-700 hover:border-brand hover:bg-dark-700/50 rounded-lg flex flex-col items-center justify-center p-6 cursor-pointer transition-all min-h-[200px] group"
                             >
                                 <div className="w-12 h-12 rounded-full bg-dark-700 flex items-center justify-center mb-3 group-hover:bg-brand group-hover:text-white transition-colors">
@@ -703,15 +733,21 @@ const AdminDashboard = () => {
                             </div>
                             {achievements.map((ach, i) => (
                                 <div key={i} className="bg-dark-800 p-6 rounded-lg border border-dark-700 flex flex-col items-center text-center relative group">
-                                    <button className="absolute top-3 right-3 text-gray-500 hover:text-white"><Edit size={14} /></button>
+                                    <button onClick={() => handleEditAchievement(ach)} className="absolute top-3 right-3 text-gray-500 hover:text-white"><Edit size={14} /></button>
                                     <div className={`w-16 h-16 rounded-full bg-${ach.color}-500/10 flex items-center justify-center mb-4 text-${ach.color}-500 ring-1 ring-${ach.color}-500/20`}>
                                         {renderIconByName(ach.icon, 28)}
                                     </div>
                                     <h3 className="text-white font-bold text-base mb-1">{ach.title}</h3>
                                     <p className="text-gray-500 text-xs mt-1 mb-4 line-clamp-2 h-8 leading-relaxed">{ach.description}</p>
-                                    <div className="w-full pt-4 border-t border-dark-700 flex justify-between text-[10px] uppercase font-bold text-gray-400">
-                                        <span>{ach.criteria_type}</span>
-                                        <span>{ach.criteria_value}</span>
+                                    <div className="w-full pt-4 border-t border-dark-700/50 text-center">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Para desbloquear:</p>
+                                        <p className="text-xs text-white font-mono">
+                                            {ach.criteria_type === 'points' && `Atingir ${ach.criteria_value} pontos totais`}
+                                            {ach.criteria_type === 'workouts' && `Completar ${ach.criteria_value} treinos`}
+                                            {ach.criteria_type === 'streak' && `Manter ${ach.criteria_value} dias de ofensiva`}
+                                            {ach.criteria_type === 'video' && `Assistir ${ach.criteria_value} aulas`}
+                                            {ach.criteria_type === 'custom' && `Critério manual`}
+                                        </p>
                                     </div>
                                 </div>
                             ))}
@@ -802,8 +838,8 @@ const AdminDashboard = () => {
                 
                 {/* Lado Esquerdo: Form */}
                 <div className="flex-1 p-8 overflow-y-auto border-r border-dark-700">
-                    <h2 className="text-xl font-bold text-white mb-6">Criar Nova Conquista</h2>
-                    <form onSubmit={handleCreateAchievement} className="space-y-5">
+                    <h2 className="text-xl font-bold text-white mb-6">{editingAchievementId ? 'Editar Conquista' : 'Criar Nova Conquista'}</h2>
+                    <form onSubmit={handleSaveAchievement} className="space-y-5">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Título *</label>
@@ -867,7 +903,7 @@ const AdminDashboard = () => {
 
                         <div className="flex gap-3 pt-4">
                             <button type="button" onClick={() => setShowAchievementModal(false)} className="flex-1 bg-dark-700 hover:bg-dark-600 text-white py-3 rounded-lg text-sm font-bold transition-colors">Cancelar</button>
-                            <button type="submit" className="flex-1 bg-brand hover:bg-brand-dark text-white py-3 rounded-lg text-sm font-bold transition-colors">Criar Conquista</button>
+                            <button type="submit" className="flex-1 bg-brand hover:bg-brand-dark text-white py-3 rounded-lg text-sm font-bold transition-colors">{editingAchievementId ? 'Salvar Alterações' : 'Criar Conquista'}</button>
                         </div>
                     </form>
                 </div>

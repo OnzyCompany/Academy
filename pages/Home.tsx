@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { ArrowRight, Check, MapPin, Phone, Mail, ChevronRight, Star, Instagram, Facebook, Youtube, Loader2, Play, Clock } from 'lucide-react';
 import { Plan } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { createCheckoutSession } from '../lib/stripe';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface HomeProps {
   onOpenAuth: () => void;
@@ -10,6 +12,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ onOpenAuth }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
   // Configuração exata dos planos conforme o print
@@ -93,6 +96,14 @@ const Home: React.FC<HomeProps> = ({ onOpenAuth }) => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePersonalAccess = () => {
+    if (user) {
+      navigate('/personal');
+    } else {
+      onOpenAuth();
     }
   };
 
@@ -429,6 +440,11 @@ const Home: React.FC<HomeProps> = ({ onOpenAuth }) => {
                 <li><button onClick={() => scrollTo('plans')} className="hover:text-brand transition-colors">Planos</button></li>
                 <li><button onClick={() => scrollTo('about')} className="hover:text-brand transition-colors">Sobre</button></li>
                 <li><button onClick={() => scrollTo('gallery')} className="hover:text-brand transition-colors">Galeria</button></li>
+                <li>
+                  <button onClick={handlePersonalAccess} className="hover:text-brand transition-colors text-left">
+                    Área do Personal
+                  </button>
+                </li>
               </ul>
             </div>
 

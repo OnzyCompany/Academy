@@ -87,7 +87,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
         }
 
         // Usar UPSERT para garantir que o perfil seja criado ou atualizado se já existir (criado por trigger ou admin)
-        await supabase.from('profiles').upsert({
+        const { error: profileError } = await supabase.from('profiles').upsert({
             id: data.user!.id,
             name: formData.name,
             email: formData.email,
@@ -95,6 +95,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
             role: 'student',
             // Não definimos status aqui para não sobrescrever uma ativação prévia feita pelo admin
         }, { onConflict: 'id' });
+
+        if (profileError) {
+            console.error("Erro ao criar perfil:", profileError);
+            // Não lançamos erro fatal aqui pois o usuário foi criado no Auth
+        }
 
         setSuccessMessage('Cadastro realizado! Verifique seu e-mail para confirmar.');
         setTimeout(() => switchMode('signin'), 3000);

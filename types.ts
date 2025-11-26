@@ -13,6 +13,7 @@ export interface Profile {
   created_at: string;
   personal_id?: string | null;
   photo_url?: string | null;
+  payment_status?: string;
 }
 
 export interface Achievement {
@@ -90,6 +91,7 @@ export interface UserStats {
   workouts_completed: number;
   videos_completed: number;
   current_streak: number;
+  last_activity?: string;
 }
 
 export interface Plan {
